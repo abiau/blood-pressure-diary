@@ -16,8 +16,8 @@ android {
         applicationId = "com.bloodpressure.diary"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 8
+        versionName = "1.7.0"
     }
 
     if (keyStorePath != null) {
@@ -55,6 +55,7 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.4.2")
     implementation("androidx.camera:camera-view:1.4.2")
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation("org.opencv:opencv:4.12.0")
 
     implementation("androidx.room:room-runtime:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")

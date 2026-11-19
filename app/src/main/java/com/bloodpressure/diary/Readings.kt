@@ -1,6 +1,21 @@
 package com.bloodpressure.diary
 
-internal data class Readings(val systolic: Int?, val diastolic: Int?, val pulse: Int?)
+internal data class Readings(val systolic: Int?, val diastolic: Int?, val pulse: Int?) {
+    val isComplete get() = systolic != null && diastolic != null && pulse != null
+
+    fun withFallback(other: Readings): Readings {
+        fun agree(first: Int?, second: Int?): Int? = when {
+            first == null -> second
+            second == null || first == second -> first
+            else -> null
+        }
+        val sys = agree(systolic, other.systolic)
+        val dia = agree(diastolic, other.diastolic)
+        val heartRate = agree(pulse, other.pulse)
+        return if (sys != null && dia != null && sys <= dia) Readings(null, null, heartRate)
+        else Readings(sys, dia, heartRate)
+    }
+}
 
 internal data class OcrToken(val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int)
 

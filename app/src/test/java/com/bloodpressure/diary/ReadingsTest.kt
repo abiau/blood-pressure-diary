@@ -5,6 +5,20 @@ import org.junit.Test
 
 class ReadingsTest {
     @Test
+    fun fillsMissingFieldsWithFallbackAndKeepsUncontestedValues() {
+        val segments = Readings(null, 83, 68)
+        assertEquals(Readings(113, 83, 68), segments.withFallback(Readings(113, null, 68)))
+        assertEquals(segments, segments.withFallback(Readings(null, null, null)))
+    }
+
+    @Test
+    fun leavesConflictingValuesBlank() {
+        val segments = Readings(null, 83, 68)
+        assertEquals(Readings(113, null, 68), segments.withFallback(Readings(113, 88, null)))
+        assertEquals(Readings(null, null, 68), segments.withFallback(Readings(80, null, null)))
+    }
+
+    @Test
     fun pairsLabelsInSeparateColumns() {
         assertEquals(Readings(123, 81, 72), parseReadings(listOf(
             token("SYS", 0, 0), token("DIA", 0, 30), token("PUL", 0, 60),

@@ -18,9 +18,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import java.time.OffsetDateTime
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun CameraScreen(
@@ -30,6 +29,7 @@ internal fun CameraScreen(
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
     val executor = remember(context) { ContextCompat.getMainExecutor(context) }
     val previewView = remember(context) {
         PreviewView(context).apply { scaleType = PreviewView.ScaleType.FIT_CENTER }
@@ -85,7 +85,21 @@ internal fun CameraScreen(
                                 image.close()
                                 return
                             }
-                            recognize(image) { readings ->
+                            val rotation = image.imageInfo.rotationDegrees
+                            val bitmap = try {
+                                image.toBitmap()
+                            } catch (_: Exception) {
+                                null
+                            } finally {
+                                // 複製像素後立即歸還相機緩衝區。
+                                image.close()
+                            }
+                            scope.launch {
+                                val readings = if (bitmap == null) Readings(null, null, null) else try {
+                                    recognizePhoto(InputImage.fromBitmap(bitmap, rotation))
+                                } finally {
+                                    bitmap.recycle()
+                                }
                                 if (active.value) currentOnResult(takenAt, readings)
                             }
                         }
@@ -102,55 +116,5 @@ internal fun CameraScreen(
             OutlinedButton(onClick = onManual) { Text("手動輸入") }
         }
         TextButton(onClick = onCancel) { Text("取消") }
-    }
-}
-
-private fun recognize(image: ImageProxy, onResult: (Readings) -> Unit) {
-    val empty = Readings(null, null, null)
-    // 照片只留在記憶體，複製像素後立即歸還相機緩衝區。
-    val rotation = image.imageInfo.rotationDegrees
-    val bitmap = try {
-        image.toBitmap()
-    } catch (_: Exception) {
-        null
-    } finally {
-        image.close()
-    }
-    if (bitmap == null) {
-        onResult(empty)
-        return
-    }
-
-    val recognizer = try {
-        TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-    } catch (_: Exception) {
-        bitmap.recycle()
-        onResult(empty)
-        return
-    }
-    val task = try {
-        recognizer.process(InputImage.fromBitmap(bitmap, rotation))
-    } catch (_: Exception) {
-        recognizer.close()
-        bitmap.recycle()
-        onResult(empty)
-        return
-    }
-    task.addOnCompleteListener { result ->
-        val readings = if (result.isSuccessful) {
-            val tokens = result.result.textBlocks.flatMap { block ->
-                block.lines.flatMap { line ->
-                    line.elements.mapNotNull { element ->
-                        element.boundingBox?.let { OcrToken(element.text, it.left, it.top, it.right, it.bottom) }
-                    }
-                }
-            }
-            parseReadings(tokens)
-        } else {
-            empty
-        }
-        recognizer.close()
-        bitmap.recycle()
-        onResult(readings)
     }
 }
